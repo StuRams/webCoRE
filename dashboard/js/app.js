@@ -397,6 +397,18 @@ app.directive('taskedit', function() {
 	};
 });
 
+app.directive('checkbox', function() {
+	return {
+		restrict: 'E',
+		scope: {
+			checked: '=',
+			iconClass: '@',
+			radio: '=',
+		},
+		template: '<i ng-if="checked" ng-class="iconClass + \' fa-check-\' + (radio ? \'circle\' : \'square\')" class="far no-ng-animate"></i><i ng-if="!checked" ng-class="iconClass + \' fa-\' + (radio ? \'circle\' : \'square\')" class="far no-ng-animate"></i>'
+	};
+});
+
 app.filter('orderObjectBy', function() {
   return function(items, field, reverse) {
     var filtered = [];
@@ -573,6 +585,10 @@ config.factory('dataService', ['$http', '$location', '$rootScope', '$window', '$
 
 	dataService.encryptBackup = function(obj, password) {
 		return encryptObject(obj, _ek + (password ? password : ''));
+	}
+
+	dataService.decryptBackup = function(obj, password) {
+		return decryptObject(obj, _ek + (password ? password : ''));
 	}
 
     var decryptObject = function(data, ek) {
@@ -1089,6 +1105,30 @@ config.factory('dataService', ['$http', '$location', '$rootScope', '$window', '$
 			}
         });
     }
+    
+    dataService.getImportedData = function() {
+      return localforage.getItem('import');
+    }
+    
+    dataService.setImportedData = function(importedData) {
+      return localforage.setItem('import', importedData);
+    }
+    
+    dataService.clearImportedData = function() {
+      return localforage.removeItem('import');
+    }
+    
+    dataService.loadFromImport = function (pistonId) {
+      status('Loading piston from import...');
+      return $q.resolve(localforage.getItem('import')).then(function(pistons) {
+        status();
+        if (pistons && pistons.length > 0) {
+          return pistons.find(function(data) {
+            return data.meta.id === pistonId;
+          }) || null;
+        }
+      });
+    }
 
 
 
@@ -1140,8 +1180,10 @@ config.factory('dataService', ['$http', '$location', '$rootScope', '$window', '$
 		}
 		if (saveToBinOnly) return;
 		if (data.length > maxChunkSize) {
-			//var chunks = data.match(/.{1,maxChunkSize}/g);
-			var chunks = [].concat.apply([],data.split('').map(function(x,i){ return i%maxChunkSize ? [] : data.slice(i,i+maxChunkSize) }, data));
+			var chunks = [];
+			for (var i = 0; i < data.length; i += maxChunkSize) {
+				chunks.push(data.slice(i, i + maxChunkSize))
+			}
 			status('Preparing to save chunked piston...');
 	    	return $http.jsonp((si ? si.uri : 'about:blank/') + 'intf/dashboard/piston/set.start?' + getAccessToken(si) + 'id=' + piston.id + '&chunks=' + chunks.length.toString() + '&token=' + (si && si.token ? si.token : ''), {jsonpCallbackParam: 'callback'})
 				.then(function(response) {
@@ -2047,12 +2089,6 @@ if (document.selection) {
      document.execCommand("Copy");
 }}
 
-window.FontAwesomeConfig = {
-  autoReplaceSvg: 'nest',
-};
-
-var fontAwesomePro = true;
-
 function loadFontAwesomeFallback() {
   fontAwesomePro = false;
   $('head script[src*="pro.fontawesome"]').each(function() {
@@ -2062,6 +2098,11 @@ function loadFontAwesomeFallback() {
       }).removeAttr('onerror')
       .appendTo('head');
   });
+}
+
+// Handle Pro load failure before app loads
+if (!window.fontAwesomePro) {
+  loadFontAwesomeFallback();
 }
 
 
@@ -2091,6 +2132,21 @@ app.directive('fal', function() {
 	return directive;
 });
 
+// For use with data-fa-symbol, older versions of Firefox require the full 
+// pathname in the href
+app.directive('spriteIcon', ['$sce', function($sce) {
+	return {
+		restrict: 'C',
+		scope: {
+			symbol: '@'
+		},
+		link: function(scope) {
+			scope.href = $sce.trustAsUrl(window.location.pathname + '#' + scope.symbol);
+		},
+		template: '<use xlink:href="{{href}}"></use>',
+	};
+}]);
+
 // Polyfills
 if (!String.prototype.endsWith) {
 	String.prototype.endsWith = function(search, this_len) {
@@ -2101,4 +2157,4 @@ if (!String.prototype.endsWith) {
 	};
 }
 
-version = function() { return 'v0.3.107.20180806'; };
+version = function() { return 'v0.3.108.20180906'; };
