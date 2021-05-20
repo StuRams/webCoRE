@@ -16,7 +16,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-public static String version() { return "v0.3.110.20191009" }
+public static String version() { return "v0.3.113.20210203" }
 /******************************************************************************/
 /*** webCoRE DEFINITION														***/
 /******************************************************************************/
@@ -164,7 +164,8 @@ def initData(devices, contacts) {
 def Map listAvailableDevices(raw = false, offset = 0) {
 	def time = now()
 	def response = [:]
-	def devices = settings.findAll{ it.key.startsWith("dev:") }.collect{ it.value }.flatten().sort{ it.getDisplayName() }
+	def myDevices = settings.findAll{ it.key.startsWith("dev:") }.collect{ it.value }.flatten().sort{ it.getDisplayName() }
+	def devices = myDevices.unique{ it.id }
 	def deviceCount = devices.size()
 	if (raw) {
 		response = devices.collectEntries{ dev -> [(hashId(dev.id)): dev]}
@@ -193,7 +194,7 @@ def Map listAvailableDevices(raw = false, offset = 0) {
 			false
 		}
 	}
-	log.debug "Generated list of ${offet}-${offset + devices.size()} of ${deviceCount} devices in ${now() - time}ms. Data size is ${response.toString().size()}"
+	log.debug "Generated list of ${offset}-${offset + devices.size()} of ${deviceCount} devices in ${now() - time}ms. Data size is ${response.toString().size()}"
 	return response
 }
 
